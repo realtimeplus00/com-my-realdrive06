@@ -331,7 +331,10 @@ const map = new maplibregl.Map({
   attributionControl: { compact: true }
 });
 
-// 도로면을 진한 선으로 강조해서 "운전 가능한 부분"을 구별되게 표시
+// 위성사진 위에 실제 도로선만 겹쳐 보이는 화면을 만든다:
+// 1) Esri 위성 래스터 타일을 가장 아래에 깔고
+// 2) 기존 벡터 스타일의 배경/땅/건물 같은 "면(fill)" 레이어들은 위성사진을 가려버리므로 전부 숨기고
+// 3) 도로 강조선(drivable-road-highlight)만 위성사진 위에 그대로 남긴다 (지명/도로명 라벨도 유지)
 map.on('load', () => {
   const style = map.getStyle();
   // 스타일 안에서 vector 타입 소스를 자동으로 찾는다 (OpenFreeMap 내부 소스 이름 대비)
@@ -339,6 +342,32 @@ map.on('load', () => {
   for (const key in style.sources) {
     if (style.sources[key].type === 'vector') { vectorSourceId = key; break; }
   }
+
+  // ---- 1) 무료 위성 타일(Esri World Imagery, API 키 불필요) 추가 ----
+  map.addSource('esri-satellite', {
+    type: 'raster',
+    tiles: [
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+    ],
+    tileSize: 256,
+    attribution: 'Esri, Maxar, Earthstar Geographics'
+  });
+  const bottomLayerId = style.layers.length ? style.layers[0].id : undefined;
+  map.addLayer({
+    id: 'esri-satellite-layer',
+    type: 'raster',
+    source: 'esri-satellite',
+    paint: { 'raster-opacity': 1 }
+  }, bottomLayerId); // 스타일의 가장 아래(첫 레이어) 자리에 삽입 = 배경처럼 깔림
+
+  // ---- 2) 위성사진을 가리는 배경/땅/건물 등 "면" 레이어는 숨김 (라벨은 남겨서 지명 파악 가능하게 함) ----
+  style.layers.forEach((layer) => {
+    if (layer.type === 'background' || layer.type === 'fill' || layer.type === 'fill-extrusion' || layer.type === 'line') {
+      map.setLayoutProperty(layer.id, 'visibility', 'none');
+    }
+  });
+
+  // ---- 3) 실제 도로 벡터 선을, 위성사진 위에서도 눈에 잘 띄는 색으로 강조해서 그린다 ----
   if (vectorSourceId) {
     map.addLayer({
       id: 'drivable-road-highlight',
@@ -347,8 +376,8 @@ map.on('load', () => {
       'source-layer': 'transportation', // OpenMapTiles 스키마의 도로 레이어명
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: {
-        'line-color': '#12213c',
-        'line-opacity': 0.9,
+        'line-color': '#ffcc00',
+        'line-opacity': 0.95,
         'line-width': [
           'interpolate', ['linear'], ['zoom'],
           14, 3,
