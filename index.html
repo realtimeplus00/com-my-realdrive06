@@ -396,7 +396,7 @@ function beginGame() {
   mapEl.classList.add('revealed');
   map.flyTo({
     center: [car.lng, car.lat],
-    zoom: 17.8,       // 도로/건물이 보이면서도 주변 위치를 파악할 수 있는 확대 수준
+    zoom: 15.5,        // 동네 전체 지형을 한눈에 알아볼 수 있는 확대 수준 (예전 17.8보다 훨씬 축소)
     bearing: 0,
     pitch: 0,         // 3D 없이 완전한 탑다운 2D
     speed: 0.6,
